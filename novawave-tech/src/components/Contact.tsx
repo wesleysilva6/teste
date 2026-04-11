@@ -254,11 +254,12 @@ export default function Contact() {
                     outline="none"
                   />
                 </Box>
-                <Flex
+                <Box
                   as="button"
-                  type="submit"
-                  align="center"
-                  justify="center"
+                  {...{ type: 'submit' } as object}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
                   gap="10px"
                   w="100%"
                   py="16px"
@@ -274,7 +275,7 @@ export default function Contact() {
                   transition="all 0.3s"
                 >
                   <i className="bi bi-send-fill" style={{ fontSize: '18px' }} /> Enviar mensagem
-                </Flex>
+                </Box>
               </>
             )}
           </Flex>
