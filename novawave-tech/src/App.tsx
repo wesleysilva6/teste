@@ -2,6 +2,9 @@ import { Box } from '@chakra-ui/react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Products from './components/Products'
+import CodeShowcase from './components/CodeShowcase'
+import StacksTools from './components/StacksTools'
+import WhyUs from './components/WhyUs'
 import HowItWorks from './components/HowItWorks'
 import Team from './components/Team'
 import Contact from './components/Contact'
@@ -17,6 +20,9 @@ function App() {
       <Hero />
       <Box className="section-divider" />
       <Products />
+      <CodeShowcase />
+      <StacksTools />
+      <WhyUs />
       <HowItWorks />
       <Team />
       <CtaBanner />

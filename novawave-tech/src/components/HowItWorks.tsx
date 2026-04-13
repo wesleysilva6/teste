@@ -122,22 +122,22 @@ export default function HowItWorks() {
             >
               {/* Circle + number */}
               <Flex
-                w={{ base: '72px', lg: '88px' }}
-                h={{ base: '72px', lg: '88px' }}
+                w={{ base: '80px', lg: '88px' }}
+                h={{ base: '80px', lg: '88px' }}
                 borderRadius="50%"
-                bg="#191932"
-                border={`2px solid ${step.color}40`}
+                bg="white"
+                border={`2px solid ${step.color}35`}
                 align="center"
                 justify="center"
                 flexShrink={0}
                 position="relative"
-                boxShadow={`0 0 30px ${step.color}20`}
+                boxShadow={`0 4px 24px ${step.color}18, 0 0 0 6px ${step.color}08`}
               >
                 <Flex
-                  w={{ base: '56px', lg: '68px' }}
-                  h={{ base: '56px', lg: '68px' }}
+                  w={{ base: '58px', lg: '66px' }}
+                  h={{ base: '58px', lg: '66px' }}
                   borderRadius="50%"
-                  bg={`${step.color}15`}
+                  bg={`${step.color}10`}
                   align="center"
                   justify="center"
                   color={step.color}
@@ -146,19 +146,20 @@ export default function HowItWorks() {
                 </Flex>
                 <Box
                   position="absolute"
-                  top={{ base: '-6px', lg: '-8px' }}
-                  right={{ base: '-6px', lg: '-4px' }}
-                  bg={step.color}
+                  top={{ base: '-4px', lg: '-6px' }}
+                  right={{ base: '-4px', lg: '-4px' }}
+                  bg={`linear-gradient(135deg, ${step.color}, ${step.color}bb)`}
                   color="#fff"
-                  fontSize="11px"
+                  fontSize="10px"
                   fontWeight={800}
-                  w="26px"
-                  h="26px"
+                  w="24px"
+                  h="24px"
                   borderRadius="50%"
                   display="flex"
                   alignItems="center"
                   justifyContent="center"
                   boxShadow={`0 2px 10px ${step.color}60`}
+                  fontFamily="'JetBrains Mono',monospace"
                 >
                   {step.number}
                 </Box>

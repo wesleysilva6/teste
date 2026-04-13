@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import logoImg from '../assets/Logo futurista NovaWave Tech.png';
 import { Box, Flex, HStack, Text, IconButton, VStack } from '@chakra-ui/react';
 
 const links = [
@@ -61,29 +62,23 @@ export default function Navbar() {
         align="center"
         justify="space-between"
       >
-        <HStack gap="10px" asChild>
-          <a href="#hero">
-            <Flex
-              w="38px"
-              h="38px"
-              borderRadius="10px"
-              bg="linear-gradient(135deg, #6c63ff, #00e5ff)"
-              align="center"
-              justify="center"
-              boxShadow="0 2px 15px rgba(108,99,255,0.4)"
-            >
-              <i className="bi bi-lightning-charge-fill" style={{ fontSize: '20px', color: '#fff' }} />
-            </Flex>
-            <Box>
-              <Text fontSize="20px" fontWeight={800} color="#1a1a3e" letterSpacing="-0.5px" lineHeight={1}>
-                NovaWave
-              </Text>
-              <Text fontSize="10px" fontWeight={600} color="#6c63ff" letterSpacing="2px" textTransform="uppercase" lineHeight={1} mt="2px">
-                TECH
-              </Text>
-            </Box>
+        <Box asChild>
+          <a href="#hero" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <img
+              src={logoImg}
+              alt="NovaWave Tech"
+              style={{
+                height: '36px',
+                width: 'auto',
+                objectFit: 'contain',
+                display: 'block',
+                transform: 'scale(1.7)',
+                transformOrigin: 'left center',
+                marginRight: '60px',
+              }}
+            />
           </a>
-        </HStack>
+        </Box>
 
         <HStack gap="32px" display={{ base: 'none', md: 'flex' }}>
           {links.map((l) => {

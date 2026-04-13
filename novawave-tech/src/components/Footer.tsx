@@ -1,15 +1,26 @@
-import { Box, Flex, Text, HStack, SimpleGrid } from '@chakra-ui/react';
+import { Box, Flex, Text, SimpleGrid, Badge } from '@chakra-ui/react';
+import logoImg from '../assets/Logo futurista NovaWave Tech.png';
 
 const footerLinks = [
   {
-    title: 'Produto',
-    links: ['NovaAI', 'NovaShield', 'NovaAnalytics', 'NovaWeb', 'NovaCloud', 'NovaEdge'],
+    title: 'Sistemas',
+    links: ['NovaEstoque', 'NovaArena', 'NovaMotors'],
   },
-
+  {
+    title: 'Empresa',
+    links: ['Sobre nos', 'Equipe', 'Contato'],
+  },
   {
     title: 'Suporte',
-    links: ['Documentação', 'Status', 'Contato', 'FAQ'],
+    links: ['Documentacao', 'FAQ', 'Politica de Privacidade'],
   },
+];
+
+const socials = [
+  { icon: 'bi-github',    href: 'https://github.com/wesleysilva6',                         label: 'GitHub'    },
+  { icon: 'bi-linkedin',  href: 'https://www.linkedin.com/in/wesley-wagner-nunes-silva-424725359/', label: 'LinkedIn'  },
+  { icon: 'bi-whatsapp', href: 'https://wa.me/5544997422772',                               label: 'WhatsApp'  },
+  { icon: 'bi-envelope-fill', href: 'mailto:contato@novawave.tech',                        label: 'Email'     },
 ];
 
 export default function Footer() {
@@ -25,27 +36,33 @@ export default function Footer() {
         <SimpleGrid columns={{ base: 1, md: 4 }} gap={{ base: '40px', md: '32px' }} mb="48px">
           {/* Brand column */}
           <Box>
-            <HStack gap="10px" mb="16px">
-              <Flex
-                w="36px"
-                h="36px"
-                borderRadius="10px"
-                bg="linear-gradient(135deg, #6c63ff, #00e5ff)"
-                align="center"
-                justify="center"
-              >
-                <i className="bi bi-lightning-charge-fill" style={{ fontSize: '18px', color: '#fff' }} />
-              </Flex>
-              <Box>
-                <Text fontSize="18px" fontWeight={800} color="#1a1a3e" lineHeight={1}>NovaWave</Text>
-                <Text fontSize="9px" fontWeight={600} color="#6c63ff" letterSpacing="2px" textTransform="uppercase" lineHeight={1} mt="2px">
-                  TECH
-                </Text>
-              </Box>
-            </HStack>
-            <Text fontSize="14px" color="#64748b" lineHeight={1.7} maxW="280px">
-              Transformando ideias em soluções tecnológicas de ponta. Inovação, segurança e performance para o seu negócio.
+            <Box mb="16px">
+              <img
+                src={logoImg}
+                alt="NovaWave Tech"
+                style={{ width: '180px', height: 'auto', objectFit: 'contain', display: 'block' }}
+              />
+            </Box>
+            <Text fontSize="14px" color="#64748b" lineHeight={1.7} maxW="280px" mb="20px">
+              Transformando ideias em solucoes tecnologicas de ponta. Inovacao, seguranca e performance para o seu negocio.
             </Text>
+            <Flex gap="10px" flexWrap="wrap">
+              {socials.map((s) => (
+                <Box
+                  asChild key={s.label}
+                  w="36px" h="36px" borderRadius="10px"
+                  bg="rgba(108,99,255,0.1)" color="#6c63ff"
+                  display="flex" alignItems="center" justifyContent="center"
+                  border="1px solid rgba(108,99,255,0.15)"
+                  _hover={{ bg: '#6c63ff', color: '#fff', transform: 'translateY(-2px)', boxShadow: '0 4px 16px rgba(108,99,255,0.3)' }}
+                  transition="all 0.25s"
+                >
+                  <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+                    <i className={`bi ${s.icon}`} style={{ fontSize: '15px' }} />
+                  </a>
+                </Box>
+              ))}
+            </Flex>
           </Box>
 
           {/* Link columns */}
@@ -73,22 +90,24 @@ export default function Footer() {
         </SimpleGrid>
 
         {/* Bottom */}
-        <Box
-          pt="24px"
-          borderTop="1px solid rgba(108,99,255,0.1)"
-        >
-          <Flex
-            align="center"
-            justify="space-between"
-            flexWrap="wrap"
-            gap="12px"
-            direction={{ base: 'column', md: 'row' }}
-          >
+        <Box pt="24px" borderTop="1px solid rgba(108,99,255,0.1)">
+          <Flex align="center" justify="space-between" flexWrap="wrap" gap="12px"
+            direction={{ base: 'column', md: 'row' }}>
             <Text fontSize="13px" color="#94a3b8">
               &copy; {new Date().getFullYear()} NovaWave Tech. Todos os direitos reservados.
             </Text>
-            <Flex align="center" gap="4px" fontSize="13px" color="#94a3b8">
-              Feito com <i className="bi bi-heart-fill" style={{ fontSize: '12px', color: '#f472b6' }} /> no Brasil
+            <Flex align="center" gap="12px">
+              <Badge px="10px" py="4px" borderRadius="50px" fontSize="10px" fontWeight={700}
+                bg="rgba(52,211,153,0.1)" color="#34d399" border="1px solid rgba(52,211,153,0.2)">
+                <Flex align="center" gap="5px">
+                  <Box w="5px" h="5px" borderRadius="50%" bg="#34d399"
+                    boxShadow="0 0 6px #34d399" />
+                  Online
+                </Flex>
+              </Badge>
+              <Flex align="center" gap="4px" fontSize="13px" color="#94a3b8">
+                Feito com <i className="bi bi-heart-fill" style={{ fontSize: '12px', color: '#f472b6' }} /> no Brasil
+              </Flex>
             </Flex>
           </Flex>
         </Box>
