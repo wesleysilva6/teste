@@ -7,4 +7,3 @@ out
 *.tsbuildinfo
 vercel
 dev-server.log
-supabase
