@@ -466,16 +466,35 @@ function ProductPage() {
 
   useEffect(() => {
     if (!slug) return;
-    Promise.all([getProduct(slug), getProducts()]).then(([productData, productList]) => {
-      setProduct(productData);
-      setProducts(productList);
-    }).finally(() => setLoading(false));
+
+    Promise.all([getProduct(slug), getProducts()])
+      .then(([productData, productList]) => {
+        setProduct(productData);
+        setProducts(productList);
+      })
+      .finally(() => setLoading(false));
   }, [slug]);
 
-  if (loading) return <PublicLayout><main className="public-surface min-h-screen pt-32"><LoadingBlock /></main></PublicLayout>;
+  useSeo(
+    product?.name || "Equipamento",
+    product?.short_description || product?.description || "",
+    product?.image_url || ""
+  );
+
+  if (loading)
+    return (
+      <PublicLayout>
+        <main className="public-surface min-h-screen pt-32">
+          <LoadingBlock />
+        </main>
+      </PublicLayout>
+    );
+
   if (!product) return <NotFound />;
-  useSeo(product.name, product.short_description || product.description, product.image_url);
-  const related = autoRelatedProducts(product, products);
+
+const related = product
+  ? autoRelatedProducts(product, products)
+  : [];
 
   return (
     <PublicLayout>
@@ -577,17 +596,47 @@ function TrackPage() {
 
   useEffect(() => {
     if (!slug) return;
-    getProduct(slug).then(async (product) => {
-      if (!product) {
-        navigate("/arsenal", { replace: true });
-        return;
-      }
-      await trackClick(product).catch(() => undefined);
-      window.location.href = product.affiliate_url;
-    });
-  }, [navigate, slug]);
 
-  return <main className="grid min-h-screen place-items-center bg-bunker-black"><LoadingBlock label="Registrando clique" /></main>;
+    const handleTracking = async () => {
+      try {
+        const product = await getProduct(slug);
+
+        if (!product) {
+          navigate("/arsenal", { replace: true });
+          return;
+        }
+
+        // verifica link afiliado
+        if (!product.affiliate_url) {
+          console.error("Produto sem affiliate_url");
+          navigate(`/produto/${slug}`, { replace: true });
+          return;
+        }
+
+        // tracking silencioso
+        try {
+          await trackClick(product);
+        } catch (err) {
+          console.error("Erro tracking:", err);
+        }
+
+        // redireciona
+        window.location.href = product.affiliate_url;
+
+      } catch (err) {
+        console.error(err);
+        navigate("/arsenal", { replace: true });
+      }
+    };
+
+    handleTracking();
+  }, [slug, navigate]);
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-bunker-black">
+      <LoadingBlock label="Redirecionando..." />
+    </main>
+  );
 }
 
 function Login() {
@@ -2683,23 +2732,46 @@ function IntegrationsAdmin() {
   const [editing, setEditing] = useState<IntegrationRow | null>(null);
   const [feedback, setFeedback] = useState("");
 
-  async function load() {
-    const { data, error } = await supabase.from("integrations").select("*").order("platform");
-    if (!error && data?.length) {
-      setIntegrations(data.map((item) => ({
-        id: item.id,
-        name: item.name ?? item.platform,
-        provider: item.provider ?? item.id,
-        platform: item.platform,
-        description: item.description ?? defaultIntegrations.find((integration) => integration.platform === item.platform)?.description ?? "Integração externa.",
-        status: item.status,
-        config: normalizeConfig(item.config),
-        last_tested_at: item.last_tested_at ?? null,
-        last_sync_at: item.last_sync_at
-      })) as IntegrationRow[]);
-    }
+async function load() {
+  const { data, error } = await supabase
+    .from("integrations")
+    .select("*")
+    .order("platform");
+
+  if (error) {
+    console.error(error);
+    return;
   }
-  useEffect(() => { load(); }, []);
+
+  const merged = defaultIntegrations.map((defaultItem) => {
+    const saved = data?.find((item) => {
+      return (
+        item.id === defaultItem.id ||
+        item.provider === defaultItem.provider ||
+        item.platform === defaultItem.platform
+      );
+    });
+
+    if (!saved) {
+      return defaultItem;
+    }
+
+    return {
+      ...defaultItem,
+      id: saved.id ?? defaultItem.id,
+      name: saved.name ?? saved.platform ?? defaultItem.platform,
+      provider: saved.provider ?? defaultItem.provider ?? defaultItem.id,
+      platform: saved.platform ?? defaultItem.platform,
+      description: saved.description ?? defaultItem.description,
+      status: saved.status ?? defaultItem.status,
+      config: normalizeConfig(saved.config),
+      last_tested_at: saved.last_tested_at ?? null,
+      last_sync_at: saved.last_sync_at ?? defaultItem.last_sync_at,
+    };
+  });
+
+  setIntegrations(merged as IntegrationRow[]);
+}
 
   async function saveIntegration(integration: IntegrationRow, patch: Partial<IntegrationRow> = {}) {
     const next: IntegrationRow = { ...integration, ...patch };
