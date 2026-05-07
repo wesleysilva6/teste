@@ -224,7 +224,6 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   const nav = [
     ["Arsenal", "/arsenal"],
     ["Mais acessados", "/mais-acessados"],
-    ["Drops", "/drops"],
     ["Sobrevivência", "/sobrevivencia"],
     ["Arquivos", "/categoria/itens-misteriosos"],
     ["Sobre", "/sobre"]
@@ -323,13 +322,6 @@ function Home() {
 
         <Section title="Status operacional" eyebrow="Terminal militar" description="Leitura rapida da plataforma para visitantes vindos das redes sociais.">
           <OperationalStatusStrip products={data.products} />
-        </Section>
-
-        <Section title="Drops da semana" eyebrow="Novo arsenal" description="Produtos recentes, kits recomendados e operacoes temporarias com contagem regressiva.">
-          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-            <CountdownPanel title="Operacao Bunker" endsAt={nextFridayAt23()} />
-            <ProductGrid products={data.products.slice(0, 4)} />
-          </div>
         </Section>
 
         <Section title="Setores da Loja do Apocalipse" eyebrow="Categorias principais" description="Navegue por áreas táticas pensadas para fuga, abrigo, energia, comunicação e exploração.">
