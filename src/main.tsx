@@ -4215,6 +4215,7 @@ function AiSettingsPanel() {
   const [lastTested, setLastTested] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [diagnostic, setDiagnostic] = useState("");
 
   useEffect(() => {
     aiSettingsRequest("GET").then((result) => {
@@ -4248,6 +4249,17 @@ function AiSettingsPanel() {
     if (result.ok) setLastTested(new Date().toISOString());
   }
 
+  async function diagnose() {
+    const token = await getAuthToken();
+    try {
+      const ping = await fetch("/api/ping").then(parseApiJson);
+      const health = await fetch("/api/ai-health", { headers: { Authorization: `Bearer ${token}` } }).then(parseApiJson);
+      setDiagnostic(JSON.stringify({ ping, health }, null, 2));
+    } catch (error: any) {
+      setDiagnostic(error?.message || "Falha no diagnostico das Functions.");
+    }
+  }
+
   return (
     <div>
       <Heading eyebrow="Configuração segura" title="Inteligência IA" description="A chave é usada apenas por API protegida no servidor. O frontend público nunca recebe a API Key." />
@@ -4261,7 +4273,8 @@ function AiSettingsPanel() {
         <div><Label>Idioma padrão</Label><Input value={language} onChange={(event) => setLanguage(event.target.value)} className="mt-2" /></div>
         <div className="rounded-lg border border-white/10 bg-black/25 p-4 text-sm text-muted-foreground">Último teste: {lastTested ? new Date(lastTested).toLocaleString("pt-BR") : "nunca"}</div>
       </div>
-      <div className="mt-5 flex flex-wrap gap-3"><Button onClick={save} disabled={loading}>{loading ? "Salvando..." : "Salvar IA"}</Button><Button variant="outline" onClick={test} disabled={loading}>Testar conexão</Button></div>
+      <div className="mt-5 flex flex-wrap gap-3"><Button onClick={save} disabled={loading}>{loading ? "Salvando..." : "Salvar IA"}</Button><Button variant="outline" onClick={test} disabled={loading}>Testar conexão</Button><Button variant="outline" onClick={diagnose}>Diagnosticar API</Button></div>
+      {diagnostic ? <pre className="mt-4 max-h-72 overflow-auto rounded-lg border border-white/10 bg-black/40 p-4 text-xs text-primary">{diagnostic}</pre> : null}
       {feedback ? <Feedback text={feedback} /> : null}
     </div>
   );
