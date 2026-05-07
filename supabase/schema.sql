@@ -313,6 +313,118 @@ create table if not exists public.admin_notifications (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.affiliate_link_checks (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references public.products(id) on delete cascade,
+  url text not null,
+  final_url text,
+  status_code integer,
+  status text not null default 'active' check (status in ('active', 'invalid', 'timeout', 'suspicious_redirect', 'error')),
+  error text,
+  checked_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.story_maker_assets (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references public.products(id) on delete set null,
+  title text not null,
+  copy text,
+  cta text,
+  campaign text,
+  format text not null default 'story',
+  template text not null default 'bunker',
+  exported_type text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.report_exports (
+  id uuid primary key default gen_random_uuid(),
+  report_type text not null,
+  format text not null,
+  filters jsonb not null default '{}'::jsonb,
+  status text not null default 'generated' check (status in ('generated', 'failed')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.campaign_schedules (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  target_type text not null default 'campaign' check (target_type in ('campaign', 'banner', 'collection', 'featured_product', 'event')),
+  target_id uuid,
+  starts_at timestamptz not null,
+  ends_at timestamptz,
+  status text not null default 'scheduled' check (status in ('scheduled', 'active', 'finished', 'paused')),
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.highlight_rules (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  rule_type text not null check (rule_type in ('top_product', 'hot_campaign', 'viral_collection', 'daily_product', 'fast_growth')),
+  target_type text,
+  status text not null default 'active' check (status in ('active', 'inactive')),
+  settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.ab_tests (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  entity_type text not null default 'banner' check (entity_type in ('banner', 'cta', 'campaign', 'thumbnail', 'title')),
+  entity_id uuid,
+  variant_a jsonb not null default '{}'::jsonb,
+  variant_b jsonb not null default '{}'::jsonb,
+  status text not null default 'active' check (status in ('active', 'paused', 'finished')),
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.product_reactions (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  reaction text not null,
+  visitor_hash text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.recommended_kits (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  description text,
+  banner_url text,
+  status text not null default 'active' check (status in ('active', 'inactive', 'draft')),
+  tags text[] not null default '{}',
+  cta text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.secret_pages (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  description text,
+  campaign text,
+  status text not null default 'active' check (status in ('active', 'inactive')),
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.operational_events (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  status text not null default 'draft' check (status in ('draft', 'active', 'finished')),
+  settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists products_slug_idx on public.products(slug);
 create index if not exists products_status_idx on public.products(status);
 create index if not exists products_category_idx on public.products(category_id);
@@ -348,6 +460,19 @@ create index if not exists short_links_code_idx on public.short_links(code);
 create index if not exists pixel_events_provider_idx on public.pixel_events(provider);
 create index if not exists internal_ads_status_idx on public.internal_ads(status);
 create index if not exists admin_notifications_created_at_idx on public.admin_notifications(created_at);
+create index if not exists affiliate_link_checks_product_idx on public.affiliate_link_checks(product_id);
+create index if not exists affiliate_link_checks_checked_idx on public.affiliate_link_checks(checked_at);
+create index if not exists affiliate_link_checks_status_idx on public.affiliate_link_checks(status);
+create index if not exists story_maker_assets_campaign_idx on public.story_maker_assets(campaign);
+create index if not exists report_exports_created_at_idx on public.report_exports(created_at);
+create index if not exists campaign_schedules_starts_idx on public.campaign_schedules(starts_at);
+create index if not exists campaign_schedules_status_idx on public.campaign_schedules(status);
+create index if not exists highlight_rules_type_idx on public.highlight_rules(rule_type);
+create index if not exists ab_tests_status_idx on public.ab_tests(status);
+create index if not exists product_reactions_product_idx on public.product_reactions(product_id);
+create index if not exists recommended_kits_slug_idx on public.recommended_kits(slug);
+create index if not exists secret_pages_slug_idx on public.secret_pages(slug);
+create index if not exists operational_events_status_idx on public.operational_events(status);
 
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
@@ -374,6 +499,16 @@ alter table public.short_links enable row level security;
 alter table public.pixel_events enable row level security;
 alter table public.internal_ads enable row level security;
 alter table public.admin_notifications enable row level security;
+alter table public.affiliate_link_checks enable row level security;
+alter table public.story_maker_assets enable row level security;
+alter table public.report_exports enable row level security;
+alter table public.campaign_schedules enable row level security;
+alter table public.highlight_rules enable row level security;
+alter table public.ab_tests enable row level security;
+alter table public.product_reactions enable row level security;
+alter table public.recommended_kits enable row level security;
+alter table public.secret_pages enable row level security;
+alter table public.operational_events enable row level security;
 
 create or replace function public.is_admin()
 returns boolean
@@ -436,6 +571,26 @@ using (status = 'active' or public.is_admin());
 drop policy if exists "Public read active short links" on public.short_links;
 create policy "Public read active short links"
 on public.short_links for select
+using (status = 'active' or public.is_admin());
+
+drop policy if exists "Public insert product reactions" on public.product_reactions;
+create policy "Public insert product reactions"
+on public.product_reactions for insert
+with check (true);
+
+drop policy if exists "Public read active recommended kits" on public.recommended_kits;
+create policy "Public read active recommended kits"
+on public.recommended_kits for select
+using (status = 'active' or public.is_admin());
+
+drop policy if exists "Public read active secret pages" on public.secret_pages;
+create policy "Public read active secret pages"
+on public.secret_pages for select
+using (status = 'active' or public.is_admin());
+
+drop policy if exists "Public read active operational events" on public.operational_events;
+create policy "Public read active operational events"
+on public.operational_events for select
 using (status = 'active' or public.is_admin());
 
 drop policy if exists "Admins manage categories" on public.categories;
@@ -576,6 +731,66 @@ on public.admin_notifications for all
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "Admins manage affiliate link checks" on public.affiliate_link_checks;
+create policy "Admins manage affiliate link checks"
+on public.affiliate_link_checks for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage story maker assets" on public.story_maker_assets;
+create policy "Admins manage story maker assets"
+on public.story_maker_assets for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage report exports" on public.report_exports;
+create policy "Admins manage report exports"
+on public.report_exports for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage campaign schedules" on public.campaign_schedules;
+create policy "Admins manage campaign schedules"
+on public.campaign_schedules for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage highlight rules" on public.highlight_rules;
+create policy "Admins manage highlight rules"
+on public.highlight_rules for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage ab tests" on public.ab_tests;
+create policy "Admins manage ab tests"
+on public.ab_tests for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage product reactions" on public.product_reactions;
+create policy "Admins manage product reactions"
+on public.product_reactions for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage recommended kits" on public.recommended_kits;
+create policy "Admins manage recommended kits"
+on public.recommended_kits for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage secret pages" on public.secret_pages;
+create policy "Admins manage secret pages"
+on public.secret_pages for all
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Admins manage operational events" on public.operational_events;
+create policy "Admins manage operational events"
+on public.operational_events for all
+using (public.is_admin())
+with check (public.is_admin());
+
 drop policy if exists "Admins read clicks" on public.clicks;
 create policy "Admins read clicks"
 on public.clicks for select
@@ -619,3 +834,18 @@ values (
   'active'
 )
 on conflict do nothing;
+
+insert into public.recommended_kits (name, slug, description, tags, cta, status)
+values
+  ('Kit Bunker', 'kit-bunker', 'Arsenal para manter abrigo, energia e comunicacao ativos.', array['bunker','energia','comunicacao'], 'Abrir kit', 'active'),
+  ('Kit Blackout', 'kit-blackout', 'Itens para apagao, rotas escuras e queda de infraestrutura.', array['energia','lanterna','emergencia'], 'Ver blackout', 'active'),
+  ('Kit Sobrevivencia', 'kit-sobrevivencia', 'Base de fuga com mochila, sinalizacao e suprimentos.', array['sobrevivencia','mochila','emergencia'], 'Montar arsenal', 'active'),
+  ('Kit Militar', 'kit-militar', 'Equipamentos taticos para operacoes de campo.', array['militar','radio','tatico'], 'Ver kit militar', 'active')
+on conflict (slug) do nothing;
+
+insert into public.secret_pages (title, slug, description, campaign, status)
+values
+  ('Arquivo 7X', 'arquivo-7x', 'Pagina oculta para campanha viral de arquivo restrito.', 'arquivo-7x', 'active'),
+  ('Setor 13', 'setor-13', 'Setor secreto com itens raros e chamada de alto suspense.', 'setor-13', 'active'),
+  ('Protocolo Black', 'protocolo-black', 'Operacao especial para drops e promocoes exclusivas.', 'protocolo-black', 'active')
+on conflict (slug) do nothing;

@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
+  Bell,
   BookOpen,
   Bookmark,
   Boxes,
@@ -18,6 +19,8 @@ import {
   Edit3,
   Eye,
   FileBarChart,
+  FileCheck2,
+  FileDown,
   Filter,
   Grid3X3,
   Image as ImageIcon,
@@ -30,6 +33,7 @@ import {
   Menu,
   MousePointerClick,
   PackagePlus,
+  Palette,
   Plug,
   QrCode,
   Search,
@@ -101,6 +105,15 @@ const adminNavSections = [
       ["/admin/relatorios", "Relatórios", FileBarChart],
       ["/admin/links", "Links Rastreáveis", Link2],
       ["/admin/historias", "Arquivo das Histórias", BookOpen],
+      ["/admin/agendamentos", "Agendamentos", Calendar],
+      ["/admin/destaques-auto", "Destaques Auto", Radar],
+      ["/admin/historico-campanhas", "Histórico", Clock3],
+      ["/admin/ab-testes", "A/B Testes", Filter],
+      ["/admin/plataformas", "Plataformas", Globe2],
+      ["/admin/status-operacional", "Status", ShieldCheck],
+      ["/admin/alertas", "Alertas", Bell],
+      ["/admin/verificador-links", "Verificador de Links", FileCheck2],
+      ["/admin/story-maker", "Story Maker", Palette],
       ["/admin/ia", "Assistente IA", Cpu]
     ]
   },
@@ -134,6 +147,13 @@ function App() {
         <Route path="/arquivo-bunker" element={<ThematicPage theme="bunker" />} />
         <Route path="/itens-proibidos" element={<ThematicPage theme="proibidos" />} />
         <Route path="/arquivo-das-historias" element={<StoriesArchivePage />} />
+        <Route path="/mais-acessados" element={<MostAccessedPage />} />
+        <Route path="/sobre" element={<LorePage />} />
+        <Route path="/drops" element={<DropsPage />} />
+        <Route path="/bio" element={<BioHubPage />} />
+        <Route path="/arquivo-7x" element={<SecretPage code="arquivo-7x" />} />
+        <Route path="/setor-13" element={<SecretPage code="setor-13" />} />
+        <Route path="/protocolo-black" element={<SecretPage code="protocolo-black" />} />
         <Route path="/admin/login" element={<Login />} />
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<Protected><Dashboard /></Protected>} />
@@ -151,6 +171,15 @@ function App() {
         <Route path="/admin/links" element={<Protected><TrackingLinksAdmin /></Protected>} />
         <Route path="/admin/integracoes" element={<Protected><IntegrationsAdmin /></Protected>} />
         <Route path="/admin/historias" element={<Protected><StoriesAdmin /></Protected>} />
+        <Route path="/admin/agendamentos" element={<Protected><SchedulingAdmin /></Protected>} />
+        <Route path="/admin/destaques-auto" element={<Protected><AutoHighlightsAdmin /></Protected>} />
+        <Route path="/admin/historico-campanhas" element={<Protected><CampaignHistoryAdmin /></Protected>} />
+        <Route path="/admin/ab-testes" element={<Protected><ABTestsAdmin /></Protected>} />
+        <Route path="/admin/plataformas" element={<Protected><PlatformAnalyticsAdmin /></Protected>} />
+        <Route path="/admin/status-operacional" element={<Protected><OperationalStatusAdmin /></Protected>} />
+        <Route path="/admin/alertas" element={<Protected><AlertsAdmin /></Protected>} />
+        <Route path="/admin/verificador-links" element={<Protected><LinkCheckerAdmin /></Protected>} />
+        <Route path="/admin/story-maker" element={<Protected><StoryMakerAdmin /></Protected>} />
         <Route path="/admin/central-ajuda" element={<Protected><HelpCenterAdmin /></Protected>} />
         <Route path="/admin/ajuda" element={<Navigate to="/admin/central-ajuda" replace />} />
         <Route path="*" element={<NotFound />} />
@@ -194,8 +223,11 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   ] as const;
   const nav = [
     ["Arsenal", "/arsenal"],
+    ["Mais acessados", "/mais-acessados"],
+    ["Drops", "/drops"],
     ["Sobrevivência", "/sobrevivencia"],
-    ["Arquivos", "/categoria/itens-misteriosos"]
+    ["Arquivos", "/categoria/itens-misteriosos"],
+    ["Sobre", "/sobre"]
   ];
 
   return (
@@ -289,6 +321,17 @@ function Home() {
           </div>
         </section>
 
+        <Section title="Status operacional" eyebrow="Terminal militar" description="Leitura rapida da plataforma para visitantes vindos das redes sociais.">
+          <OperationalStatusStrip products={data.products} />
+        </Section>
+
+        <Section title="Drops da semana" eyebrow="Novo arsenal" description="Produtos recentes, kits recomendados e operacoes temporarias com contagem regressiva.">
+          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+            <CountdownPanel title="Operacao Bunker" endsAt={nextFridayAt23()} />
+            <ProductGrid products={data.products.slice(0, 4)} />
+          </div>
+        </Section>
+
         <Section title="Setores da Loja do Apocalipse" eyebrow="Categorias principais" description="Navegue por áreas táticas pensadas para fuga, abrigo, energia, comunicação e exploração.">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {data.categories.map((category) => (
@@ -329,14 +372,29 @@ function Home() {
 
 function Catalog({ categorySlug }: { categorySlug?: string }) {
   const { data, loading } = useStore();
-  const products = categorySlug
-    ? data.products.filter((product) => product.categories?.slug === categorySlug)
-    : data.products;
+  const [query, setQuery] = useState("");
+  const [tag, setTag] = useState("all");
+  const [sort, setSort] = useState("recent");
+  const tags = unique(data.products.flatMap((product) => product.tags ?? []).filter(Boolean).map(String)).slice(0, 18);
+  const products = (categorySlug ? data.products.filter((product) => product.categories?.slug === categorySlug) : data.products)
+    .filter((product) => {
+      const haystack = [product.name, product.description, product.categories?.name, ...(product.tags ?? [])].join(" ").toLowerCase();
+      return (!query || haystack.includes(query.toLowerCase())) && (tag === "all" || product.tags?.includes(tag));
+    })
+    .sort((a, b) => sort === "popular" ? (b.click_count ?? 0) - (a.click_count ?? 0) : sort === "featured" ? Number(b.is_featured) - Number(a.is_featured) : new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return (
     <PublicLayout>
       <main className="public-surface min-h-screen px-4 pb-20 pt-32 sm:px-6">
         <div className="mx-auto max-w-7xl">
           <PublicHeading eyebrow="Arsenal" title={categorySlug ? "Sobrevivência para rotas hostis" : "Todos os equipamentos catalogados"} description="Explore a vitrine completa com produtos afiliados prontos para cenários de colapso, bunker e sobrevivência." />
+          <section className="mb-8 rounded-2xl border border-primary/12 bg-[rgba(10,18,15,0.72)] p-4 backdrop-blur">
+            <div className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
+              <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por produto, tag, campanha ou categoria..." className="pl-10" /></div>
+              <Select value={tag} onChange={setTag} options={[["all", "Todas tags"], ...tags.map((item) => [item, item] as [string, string])]} />
+              <Select value={sort} onChange={setSort} options={[["recent", "Mais recentes"], ["popular", "Popularidade"], ["featured", "Destaques"]]} />
+            </div>
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-primary">Exibindo {products.length} de {data.products.length} equipamentos</p>
+          </section>
           {loading ? <SkeletonGrid /> : <ProductGrid products={products} />}
         </div>
       </main>
@@ -390,6 +448,7 @@ function ThematicPage({ theme }: { theme: "zumbi" | "kit" | "secretos" | "bunker
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Button asChild size="lg"><Link to="#catalogo">Explorar arquivo <ArrowUpRight className="h-4 w-4" /></Link></Button>
                   <Button asChild size="lg" variant="outline"><Link to="/arquivo-das-historias">Ver histórias</Link></Button>
+                  <Button size="lg" variant="outline" onClick={() => copyText(window.location.href)}><Copy className="h-4 w-4" /> Copiar link</Button>
                 </div>
               </div>
               <div className="rounded-2xl border border-primary/15 bg-primary/[0.055] p-5 shadow-glow">
@@ -397,11 +456,16 @@ function ThematicPage({ theme }: { theme: "zumbi" | "kit" | "secretos" | "bunker
                 <div className="mt-4 grid gap-3">
                   {config.terms.slice(0, 4).map((term) => <MiniMetric key={term} label="tag inteligente" value={term} />)}
                 </div>
+                <div className="mt-5 rounded-lg border border-white/10 bg-black/25 p-4">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Campanha relacionada</p>
+                  <p className="mt-2 text-sm font-semibold text-bunker-ice">{config.campaign}</p>
+                </div>
               </div>
             </div>
           </div>
         </section>
         <Section id="catalogo" eyebrow="Arsenal filtrado" title={config.sectionTitle} description="Produtos selecionados automaticamente por tags, categoria e narrativa.">
+          <div className="mb-6 flex flex-wrap gap-2">{config.terms.map((term) => <span key={term} className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">{term}</span>)}</div>
           {loading ? <SkeletonGrid /> : <ProductGrid products={products} danger={theme === "proibidos"} />}
         </Section>
       </main>
@@ -437,6 +501,132 @@ function StoriesArchivePage() {
             ))}
           </div>
           {loading ? <div className="mt-8"><LoadingBlock /></div> : null}
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+
+function MostAccessedPage() {
+  const { data, loading } = useStore();
+  const ranked = [...data.products].sort((a, b) => (b.click_count ?? 0) - (a.click_count ?? 0));
+  const trending = ranked.filter((product) => trendLevel(product) !== "normal").slice(0, 6);
+  useSeo("Mais acessados", "Ranking cinematografico de produtos, campanhas em alta e equipamentos mais clicados.");
+  return (
+    <PublicLayout>
+      <main className="public-surface min-h-screen px-4 pb-20 pt-32 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <PublicHeading eyebrow="Ranking do bunker" title="Mais acessados" description="Produtos em tendencia, campanhas fortes e itens mais procurados pelos sobreviventes." />
+          <div className="mb-8 grid gap-4 md:grid-cols-4">
+            <PublicMetric icon={Trophy} label="Top produto" value={ranked[0]?.name ?? "Sem dados"} />
+            <PublicMetric icon={TrendingUp} label="Em alta" value={trending.length} />
+            <PublicMetric icon={MousePointerClick} label="Cliques catalogados" value={ranked.reduce((sum, product) => sum + (product.click_count ?? 0), 0)} />
+            <PublicMetric icon={Megaphone} label="Campanha" value="bio-link" />
+          </div>
+          {loading ? <SkeletonGrid /> : <RankingGrid products={ranked.slice(0, 12)} />}
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+
+function DropsPage() {
+  const { data, loading } = useStore();
+  const drops = [...data.products].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8);
+  useSeo("Drops da semana", "Produtos novos, kits recomendados, promocoes e arsenal semanal da Loja do Apocalipse.");
+  return (
+    <PublicLayout>
+      <main className="public-surface min-h-screen px-4 pb-20 pt-32 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <PublicHeading eyebrow="Drop semanal" title="Arsenal da semana" description="Novos equipamentos, destaques temporarios e operacoes com contagem regressiva." />
+          <div className="mb-8 grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+            <CountdownPanel title="Drop expira em" endsAt={nextFridayAt23()} />
+            <RecommendedKits products={data.products} />
+          </div>
+          {loading ? <SkeletonGrid /> : <ProductGrid products={drops} />}
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+
+function BioHubPage() {
+  const { data } = useStore();
+  const featured = data.products.filter((product) => product.is_featured).slice(0, 4);
+  const links = [
+    ["Mais acessados", "/mais-acessados?source=instagram&campaign=bio-ranking", Trophy],
+    ["Drops da semana", "/drops?source=instagram&campaign=bio-drops", PackagePlus],
+    ["Kit Sobrevivencia", "/kit-sobrevivencia?source=instagram&campaign=bio-kit", ShieldCheck],
+    ["Arquivo Bunker", "/arquivo-bunker?source=instagram&campaign=bio-bunker", LockKeyhole],
+    ["Itens Proibidos", "/itens-proibidos?source=instagram&campaign=bio-proibidos", AlertTriangle]
+  ] as const;
+  useSeo("Bio Link", "Multilink premium da Loja do Apocalipse para Instagram, TikTok e campanhas organicas.");
+  return (
+    <PublicLayout>
+      <main className="public-surface min-h-screen px-4 pb-20 pt-28 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <section className="rounded-3xl border border-primary/20 bg-[rgba(10,18,15,0.82)] p-6 text-center shadow-glow backdrop-blur">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-primary"><Skull className="h-8 w-8" /></div>
+            <h1 className="mt-5 font-display text-4xl font-black text-bunker-ice">Central do Apocalipse</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-400">Campanhas, produtos, historias e arsenais recomendados em um multilink cinematografico.</p>
+          </section>
+          <div className="mt-6 grid gap-3">
+            {links.map(([label, to, Icon]) => (
+              <Link key={to} to={to} className="flex items-center justify-between rounded-2xl border border-white/10 bg-card/75 p-4 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/[0.055]">
+                <span className="flex items-center gap-3 font-bold text-bunker-ice"><Icon className="h-5 w-5 text-primary" />{label}</span>
+                <ArrowUpRight className="h-4 w-4 text-primary" />
+              </Link>
+            ))}
+          </div>
+          <div className="mt-8"><ProductGrid products={featured.length ? featured : data.products.slice(0, 4)} /></div>
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+
+function LorePage() {
+  const timeline = [
+    ["Dia 0", "O sinal caiu. A vitrine virou um arquivo de sobrevivencia."],
+    ["Dia 7", "Produtos foram classificados por setores: energia, comunicacao, abrigo e fuga."],
+    ["Dia 13", "Campanhas secretas passaram a orientar cada historia publicada nas redes."],
+    ["Agora", "O bunker opera como uma central de afiliados, analytics e storytelling."]
+  ];
+  useSeo("Sobre a Loja do Apocalipse", "Conceito, universo bunker, lore, timeline e filosofia do Hub de Afiliados cinematografico.");
+  return (
+    <PublicLayout>
+      <main className="public-surface min-h-screen px-4 pb-20 pt-32 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <PublicHeading eyebrow="Lore do sistema" title="Um bunker transformado em vitrine" description="A Loja do Apocalipse mistura storytelling, afiliados e inteligencia de trafego para conectar historias de colapso a equipamentos reais." />
+          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <Panel title="Filosofia">
+              <p className="text-sm leading-7 text-muted-foreground">Cada produto funciona como um artefato narrativo: algo que poderia aparecer em uma fuga, em um laboratorio secreto, numa operacao militar ou dentro de um abrigo subterraneo. O objetivo e transformar curiosidade organica em exploracao e clique afiliado.</p>
+            </Panel>
+            <Panel title="Timeline do colapso">
+              <div className="grid gap-3">
+                {timeline.map(([day, text]) => <div key={day} className="rounded-lg border border-white/10 bg-black/25 p-4"><p className="font-mono text-xs text-primary">{day}</p><p className="mt-2 text-sm text-slate-300">{text}</p></div>)}
+              </div>
+            </Panel>
+          </div>
+        </div>
+      </main>
+    </PublicLayout>
+  );
+}
+
+function SecretPage({ code }: { code: string }) {
+  const { data } = useStore();
+  const secretProducts = data.products.filter((product) => smartProductScore(product, ["secreto", "restrito", "militar", "misterioso", "proibido"]) > 0).slice(0, 8);
+  useSeo(code, "Pagina secreta de campanha com produtos restritos e links compartilhaveis.");
+  return (
+    <PublicLayout>
+      <main className="public-surface min-h-screen px-4 pb-20 pt-32 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <PublicHeading eyebrow="Acesso oculto" title={code.replace(/-/g, " ").toUpperCase()} description="Arquivo usado para campanhas virais, promocoes exclusivas e trafego secreto." />
+          <div className="mb-8 rounded-2xl border border-red-900/30 bg-red-950/15 p-5">
+            <p className="font-mono text-xs uppercase tracking-[0.22em] text-red-200">Protocolo fechado • link compartilhavel • campanha secreta</p>
+          </div>
+          <ProductGrid products={secretProducts.length ? secretProducts : data.products.slice(0, 8)} danger />
         </div>
       </main>
     </PublicLayout>
@@ -567,6 +757,7 @@ const related = product
                   </Button>
                   <Button asChild size="lg" variant="outline" className="h-13 rounded-xl px-7 text-base"><Link to="/arsenal">Explorar mais</Link></Button>
                 </div>
+                <ProductReactions productId={product.id} />
 
                 <p className="mt-5 text-xs leading-5 text-slate-500">
                   Ao clicar, você será redirecionado para o parceiro afiliado. O item permanece catalogado no protocolo da Loja do Apocalipse.
@@ -1716,6 +1907,76 @@ function copyText(value: string) {
   navigator.clipboard?.writeText(value);
 }
 
+function downloadBlob(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function tableHtml(rows: Record<string, unknown>[]) {
+  if (!rows.length) return "<p>Sem dados para exportar.</p>";
+  const headers = Object.keys(rows[0]);
+  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function drawCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines: number) {
+  const words = text.split(/\s+/);
+  let line = "";
+  let lineCount = 0;
+  for (const word of words) {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(nextLine).width > maxWidth && line) {
+      ctx.fillText(line, x, y + lineCount * lineHeight);
+      line = word;
+      lineCount += 1;
+      if (lineCount >= maxLines) return;
+    } else {
+      line = nextLine;
+    }
+  }
+  if (line && lineCount < maxLines) ctx.fillText(line, x, y + lineCount * lineHeight);
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
 function CategoriesAdmin() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -2481,6 +2742,32 @@ function ReportsAdmin() {
     URL.revokeObjectURL(url);
   }
 
+  function exportExcel() {
+    if (!overview) return;
+    const sheets = [
+      ["Campanhas", overview.campaignInsights.map((item) => ({ campanha: item.campaign, origem: item.source, cliques: item.clicks, melhor_horario: item.bestHour }))],
+      ["Produtos", overview.topProducts.map((item) => ({ produto: item.name, categoria: item.category, cliques: item.clicks, origem: item.mainSource }))],
+      ["Analytics", overview.sources.map((item) => ({ origem: item.source, acessos: item.value }))],
+      ["Rankings", overview.devices.map((item) => ({ dispositivo: item.device, acessos: item.value }))],
+      ["Links", overview.campaignInsights.map((item) => ({ campaign: item.campaign, source: item.source }))]
+    ];
+    const html = sheets.map(([name, rows]) => `<h2>${name}</h2>${tableHtml(rows as Record<string, unknown>[])}`).join("<br/>");
+    downloadBlob(`relatorio-excel-${Date.now()}.xls`, `<html><body>${html}</body></html>`, "application/vnd.ms-excel");
+  }
+
+  function exportPdfTemplate() {
+    if (!overview) return;
+    const html = `<html><head><title>Relatório Loja do Apocalipse</title><style>body{background:#050807;color:#f8fafc;font-family:Arial;padding:40px}h1{font-size:42px}section{border:1px solid #1f3d2b;padding:20px;margin:18px 0;background:#08110d}table{width:100%;border-collapse:collapse}td,th{border:1px solid #1f3d2b;padding:8px}th{color:#4ade80}</style></head><body><h1>Relatório Bunker</h1><p>Visão geral premium do tráfego e campanhas.</p><section><h2>Métricas</h2><p>Total de cliques: ${overview.totalClicks}</p><p>Origem principal: ${overview.mainPlatform}</p><p>Campanha líder: ${overview.bestCampaign}</p></section><section><h2>Produtos</h2>${tableHtml(overview.topProducts.map((p) => ({ Produto: p.name, Categoria: p.category, Cliques: p.clicks })))}</section><section><h2>Campanhas</h2>${tableHtml(overview.campaignInsights.map((c) => ({ Campanha: c.campaign, Origem: c.source, Cliques: c.clicks })))}</section></body></html>`;
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.print();
+    } else {
+      downloadBlob(`relatorio-pdf-template-${Date.now()}.html`, html, "text/html");
+    }
+  }
+
   async function generateAiReport() {
     setAiLoading(true);
     const result = await callAi("report", { filters });
@@ -2519,8 +2806,8 @@ function ReportsAdmin() {
         <Panel title="Exportações">
           <div className="grid gap-3 md:grid-cols-3">
             <Button onClick={exportCsv} variant="outline">CSV</Button>
-            <Button variant="outline" onClick={exportCsv}>Excel</Button>
-            <Button variant="outline" disabled>PDF futuramente</Button>
+            <Button variant="outline" onClick={exportExcel}>Excel</Button>
+            <Button variant="outline" onClick={exportPdfTemplate}>PDF</Button>
           </div>
         </Panel>
         <Panel title="Coleções populares">
@@ -3186,6 +3473,434 @@ function AiAssistantAdmin() {
   );
 }
 
+type ScheduleRow = {
+  id?: string;
+  title: string;
+  target_type: string;
+  target_id?: string | null;
+  starts_at: string;
+  ends_at?: string | null;
+  status: "scheduled" | "active" | "finished" | "paused";
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+};
+
+function SchedulingAdmin() {
+  const [items, setItems] = useState<ScheduleRow[]>([]);
+  const [form, setForm] = useState<ScheduleRow>({ title: "Operacao Bunker", target_type: "campaign", starts_at: new Date().toISOString().slice(0, 16), ends_at: "", status: "scheduled" });
+  const [feedback, setFeedback] = useState("");
+  useEffect(() => { loadSchedules(); }, []);
+  async function loadSchedules() {
+    const { data, error } = await supabase.from("campaign_schedules").select("*").order("starts_at", { ascending: true });
+    setItems(error ? [] : data as ScheduleRow[]);
+  }
+  async function saveSchedule() {
+    const row = { ...form, starts_at: new Date(form.starts_at).toISOString(), ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null };
+    const { error } = await supabase.from("campaign_schedules").insert(row);
+    setFeedback(error ? "Aplique o schema de agendamentos no Supabase antes de salvar." : "Agendamento criado.");
+    if (!error) loadSchedules();
+  }
+  const future = items.filter((item) => new Date(item.starts_at).getTime() >= Date.now());
+  return (
+    <AdminLayout title="Agendamento de Campanhas" description="Calendario premium para banners, colecoes, produtos em destaque e eventos especiais.">
+      <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
+        <Panel title="Novo agendamento">
+          <div className="grid gap-4">
+            <div><Label>Titulo</Label><Input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className="mt-2" /></div>
+            <div><Label>Tipo</Label><Select value={form.target_type} onChange={(target_type) => setForm({ ...form, target_type })} options={[["campaign", "Campanha"], ["banner", "Banner"], ["collection", "Colecao"], ["featured_product", "Produto destaque"], ["event", "Evento especial"]]} /></div>
+            <div><Label>Ativar em</Label><Input type="datetime-local" value={form.starts_at} onChange={(event) => setForm({ ...form, starts_at: event.target.value })} className="mt-2" /></div>
+            <div><Label>Desativar em</Label><Input type="datetime-local" value={form.ends_at ?? ""} onChange={(event) => setForm({ ...form, ends_at: event.target.value })} className="mt-2" /></div>
+            <Button onClick={saveSchedule}><Calendar className="h-4 w-4" /> Agendar operacao</Button>
+          </div>
+        </Panel>
+        <Panel title="Timeline cinematografica">
+          <div className="space-y-3">
+            {(future.length ? future : items).map((item) => (
+              <div key={item.id ?? item.title} className="grid gap-3 rounded-lg border border-white/10 bg-black/25 p-4 md:grid-cols-[150px_1fr_120px]">
+                <span className="font-mono text-xs text-primary">{new Date(item.starts_at).toLocaleString("pt-BR")}</span>
+                <div><p className="font-semibold text-bunker-ice">{item.title}</p><p className="text-xs text-muted-foreground">{item.target_type} • termina {item.ends_at ? new Date(item.ends_at).toLocaleString("pt-BR") : "manual"}</p></div>
+                <ModuleStatus status={item.status === "scheduled" ? "paused" : item.status === "finished" ? "inactive" : "active"} />
+              </div>
+            ))}
+            {!items.length ? <Empty text="Nenhum agendamento cadastrado." /> : null}
+          </div>
+        </Panel>
+      </div>
+      {feedback ? <Feedback text={feedback} /> : null}
+    </AdminLayout>
+  );
+}
+
+function AutoHighlightsAdmin() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  useEffect(() => { getOverview({ range: "7d" }).then(setOverview); getAdminProducts().then(setProducts); }, []);
+  const rules = buildHighlightRules(products, overview);
+  return (
+    <AdminLayout title="Destaque Automático" description="Regras para promover produto mais clicado, campanha em alta, colecao viral e crescimento rapido.">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Kpi icon={Trophy} label="Mais clicado" value={rules[0]?.value ?? "Sem dados"} helper="ranking" />
+        <Kpi icon={Megaphone} label="Campanha em alta" value={overview?.bestCampaign ?? "Sem dados"} helper="7 dias" />
+        <Kpi icon={TrendingUp} label="Crescimento" value={`${overview?.growth ?? 0}%`} helper="comparativo" />
+        <Kpi icon={Layers3} label="Colecao viral" value="Kit Bunker" helper="tags/clicks" />
+      </div>
+      <div className="mt-8 grid gap-4 xl:grid-cols-2">
+        {rules.map((rule) => (
+          <Panel key={rule.title} title={rule.title}>
+            <p className="text-sm leading-6 text-muted-foreground">{rule.description}</p>
+            <div className="mt-4 rounded-lg border border-primary/15 bg-primary/[0.055] p-4 font-mono text-xs text-primary">{rule.value}</div>
+          </Panel>
+        ))}
+      </div>
+    </AdminLayout>
+  );
+}
+
+function CampaignHistoryAdmin() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  useEffect(() => { getOverview({ range: "30d" }).then(setOverview); }, []);
+  if (!overview) return <AdminLayout title="Historico de Campanhas" description="Carregando arquivos..."><LoadingBlock /></AdminLayout>;
+  return (
+    <AdminLayout title="Histórico de Campanhas" description="Arquivo militar com campanhas antigas, desempenho, crescimento e comparativos.">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Kpi icon={Megaphone} label="Campanhas" value={overview.campaignInsights.length} helper="30 dias" />
+        <Kpi icon={MousePointerClick} label="Cliques" value={overview.totalClicks} helper="historico" />
+        <Kpi icon={TrendingUp} label="Crescimento" value={`${overview.growth}%`} helper="vs periodo anterior" />
+      </div>
+      <div className="mt-8 grid gap-4">
+        {overview.campaignInsights.map((campaign) => (
+          <article key={campaign.campaign} className="rounded-xl border border-white/10 bg-card/70 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">{campaign.source}</p><h3 className="mt-2 text-2xl font-black text-bunker-ice">{campaign.campaign}</h3></div>
+              <span className="font-mono text-primary">{campaign.clicks} cliques</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3"><MiniMetric label="Melhor horario" value={campaign.bestHour} /><MiniMetric label="Dispositivo" value={campaign.device} /><MiniMetric label="CTR" value={`${Math.max(1, Math.round(campaign.clicks / Math.max(overview.totalClicks, 1) * 100))}%`} /></div>
+          </article>
+        ))}
+      </div>
+    </AdminLayout>
+  );
+}
+
+function ABTestsAdmin() {
+  const [tests, setTests] = useState<any[]>([]);
+  const [name, setName] = useState("CTA Arsenal");
+  const [feedback, setFeedback] = useState("");
+  useEffect(() => { supabase.from("ab_tests").select("*").order("created_at", { ascending: false }).then(({ data }) => setTests(data ?? [])); }, []);
+  async function createTest() {
+    const { error } = await supabase.from("ab_tests").insert({ name, entity_type: "banner", variant_a: { cta: "Explorar Arsenal" }, variant_b: { cta: "Ver Equipamento" }, status: "active" });
+    setFeedback(error ? "Aplique o schema de A/B testes no Supabase antes de salvar." : "Teste A/B criado.");
+  }
+  return (
+    <AdminLayout title="A/B Testes" description="Compare banners, CTAs, campanhas, thumbnails e titulos por CTR e cliques.">
+      <Panel title="Novo teste">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]"><Input value={name} onChange={(event) => setName(event.target.value)} /><Button onClick={createTest}>Criar teste</Button></div>
+      </Panel>
+      <div className="mt-8 grid gap-4 xl:grid-cols-2">
+        {(tests.length ? tests : [{ id: "demo", name: "CTA Arsenal", status: "active", variant_a: { cta: "Explorar Arsenal" }, variant_b: { cta: "Ver Equipamento" } }]).map((test) => (
+          <Panel key={test.id} title={test.name}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <MiniMetric label="Variante A" value={test.variant_a?.cta ?? "A"} />
+              <MiniMetric label="Variante B" value={test.variant_b?.cta ?? "B"} />
+              <MiniMetric label="CTR A" value="--" />
+              <MiniMetric label="CTR B" value="--" />
+            </div>
+          </Panel>
+        ))}
+      </div>
+      {feedback ? <Feedback text={feedback} /> : null}
+    </AdminLayout>
+  );
+}
+
+function OperationalStatusAdmin() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  useEffect(() => { getOverview({ range: "7d" }).then(setOverview); getAdminProducts().then(setProducts); }, []);
+  return (
+    <AdminLayout title="Status Operacional" description="Painel terminal para saude de campanhas, arsenal, tracking e verificacoes.">
+      <OperationalStatusStrip products={products} />
+      <div className="mt-8 grid gap-5 xl:grid-cols-2">
+        <Panel title="Feed em tempo real">
+          <RealtimeFeed overview={overview} />
+        </Panel>
+        <Panel title="Modo evento">
+          <EventModePreview />
+        </Panel>
+      </div>
+    </AdminLayout>
+  );
+}
+
+function PlatformAnalyticsAdmin() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [source, setSource] = useState("Instagram");
+  useEffect(() => { getOverview({ range: "30d", source }).then(setOverview); }, [source]);
+  if (!overview) return <AdminLayout title="Analytics por Plataforma" description="Carregando plataformas..."><LoadingBlock /></AdminLayout>;
+  return (
+    <AdminLayout title="Analytics por Plataforma" description="Instagram, TikTok, YouTube Shorts, Telegram e Bio Link com cliques, horarios, campanhas e produtos.">
+      <TrafficFilters overview={overview} filters={{ range: "30d", source }} onChange={(filters) => setSource(filters.source ?? "Instagram")} />
+      <div className="mt-8 grid gap-4 md:grid-cols-5">
+        {["Instagram", "TikTok", "YouTube", "Telegram", "Bio Link"].map((item) => <Button key={item} variant={source === item ? "default" : "outline"} onClick={() => setSource(item)}>{item}</Button>)}
+      </div>
+      <div className="mt-8 grid gap-5 xl:grid-cols-2">
+        <Panel title={`Cliques - ${source}`}><AreaBox data={overview.daily} /></Panel>
+        <Panel title="Campanhas"><CampaignPanel campaigns={overview.campaignInsights} /></Panel>
+      </div>
+    </AdminLayout>
+  );
+}
+
+type AlertItem = {
+  id: string;
+  title: string;
+  message: string;
+  severity: "critical" | "warning" | "info" | "success";
+  created_at: string;
+};
+
+function AlertsAdmin() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("admin_notifications").select("*").order("created_at", { ascending: false }).limit(80),
+      getAdminProducts(),
+      getOverview({ range: "7d" })
+    ]).then(([alertRes, productList, overviewData]) => {
+      const dbAlerts = alertRes.error ? [] : (alertRes.data as AlertItem[]);
+      setProducts(productList);
+      setOverview(overviewData);
+      setAlerts([...generateSmartAlerts(productList, overviewData), ...dbAlerts]);
+    });
+  }, []);
+
+  async function sendExternal(alert: AlertItem, channel: string) {
+    const result = await supabase.from("integration_events").insert({
+      integration_id: channel,
+      event_type: "alert.sent",
+      payload: { title: alert.title, severity: alert.severity },
+      status: "pending",
+      response: "Envio preparado. Configure webhook real em Integrações."
+    });
+    setFeedback(result.error ? "Não foi possível registrar envio externo." : `Alerta preparado para ${channel}.`);
+  }
+
+  return (
+    <AdminLayout title="Alertas Inteligentes" description="Central de notificações operacionais, links quebrados, picos e riscos do catálogo.">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Kpi icon={Bell} label="Alertas" value={alerts.length} helper="total" />
+        <Kpi icon={AlertTriangle} label="Críticos" value={alerts.filter((item) => item.severity === "critical").length} helper="ação imediata" />
+        <Kpi icon={TrendingUp} label="Cliques 7d" value={overview?.totalClicks ?? 0} helper="tráfego" />
+        <Kpi icon={Boxes} label="Produtos" value={products.length} helper="monitorados" />
+      </div>
+      <div className="mt-8 grid gap-4">
+        {alerts.map((alert) => (
+          <article key={alert.id} className={`rounded-xl border p-5 ${alert.severity === "critical" ? "border-red-500/30 bg-red-950/25" : alert.severity === "warning" ? "border-bunker-amber/30 bg-bunker-amber/10" : "border-primary/15 bg-card/70"}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="font-semibold text-bunker-ice">{alert.title}</p><p className="mt-2 text-sm leading-6 text-muted-foreground">{alert.message}</p></div>
+              <ModuleStatus status={alert.severity === "critical" ? "expired" : alert.severity === "warning" ? "paused" : "active"} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["telegram", "discord", "email", "webhook"].map((channel) => <Button key={channel} size="sm" variant="outline" onClick={() => sendExternal(alert, channel)}>Enviar {channel}</Button>)}
+            </div>
+          </article>
+        ))}
+      </div>
+      {feedback ? <Feedback text={feedback} /> : null}
+    </AdminLayout>
+  );
+}
+
+function LinkCheckerAdmin() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [checking, setChecking] = useState("");
+  const [results, setResults] = useState<Record<string, any>>({});
+  const [feedback, setFeedback] = useState("");
+
+  useEffect(() => { getAdminProducts().then(setProducts); }, []);
+
+  async function checkProduct(product: Product) {
+    setChecking(product.id);
+    const token = await getAuthToken();
+    try {
+      const response = await fetch("/api/check-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ product_id: product.id, url: product.affiliate_url })
+      });
+      const data = await parseApiJson(response);
+      setResults((current) => ({ ...current, [product.id]: data }));
+      setFeedback(data.ok ? "Verificação concluída." : data.error ?? "Falha na verificação.");
+    } catch {
+      setFeedback("API de verificação indisponível. Faça deploy na Vercel para testar links.");
+    } finally {
+      setChecking("");
+    }
+  }
+
+  return (
+    <AdminLayout title="Verificador de Links" description="Teste links afiliados, redirecionamentos, timeouts e páginas removidas.">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Kpi icon={FileCheck2} label="Produtos" value={products.length} helper="com link afiliado" />
+        <Kpi icon={CheckCircle2} label="Ativos" value={Object.values(results).filter((item: any) => item.status === "active").length} helper="testados" />
+        <Kpi icon={AlertTriangle} label="Problemas" value={Object.values(results).filter((item: any) => item.status && item.status !== "active").length} helper="detectados" />
+        <Kpi icon={Clock3} label="Histórico" value="Logs" helper="affiliate_link_checks" />
+      </div>
+      <section className="mt-8 overflow-hidden rounded-xl border border-white/10 bg-card/70">
+        {products.map((product) => {
+          const result = results[product.id];
+          return (
+            <div key={product.id} className="grid gap-3 border-b border-white/10 p-4 md:grid-cols-[1fr_160px_180px] md:items-center">
+              <div><p className="font-semibold text-bunker-ice">{product.name}</p><p className="mt-1 truncate font-mono text-xs text-muted-foreground">{product.affiliate_url}</p></div>
+              <span className="text-sm text-muted-foreground">{result ? `${result.status_code ?? "--"} • ${result.status ?? "erro"}` : "Não testado"}</span>
+              <Button variant="outline" onClick={() => checkProduct(product)} disabled={checking === product.id}>{checking === product.id ? "Testando..." : "Testar link"}</Button>
+            </div>
+          );
+        })}
+      </section>
+      {feedback ? <Feedback text={feedback} /> : null}
+    </AdminLayout>
+  );
+}
+
+function StoryMakerAdmin() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productId, setProductId] = useState("");
+  const [format, setFormat] = useState("story");
+  const [template, setTemplate] = useState("bunker militar");
+  const [headline, setHeadline] = useState("Protocolo de sobrevivência ativo");
+  const [copy, setCopy] = useState("Equipamento catalogado para atravessar o colapso.");
+  const [cta, setCta] = useState("Ver equipamento");
+  const [campaign, setCampaign] = useState("story-maker-campaign");
+  const [aiLoading, setAiLoading] = useState(false);
+  const product = products.find((item) => item.id === productId) ?? products[0];
+
+  useEffect(() => { getAdminProducts().then((items) => { setProducts(items); setProductId(items[0]?.id ?? ""); }); }, []);
+
+  async function generateAi() {
+    setAiLoading(true);
+    const result = await callAi("banner_copy", { product: product?.name, template, campaign });
+    setAiLoading(false);
+    const data = result.data ?? {};
+    if (data.title) setHeadline(data.title);
+    if (data.subtitle || data.promotional_copy) setCopy(data.subtitle ?? data.promotional_copy);
+    if (data.cta) setCta(data.cta);
+  }
+
+  async function exportImage(type: "png" | "jpg") {
+    const dimensions = format === "story" ? [1080, 1920] : format === "feed" ? [1080, 1350] : format === "thumb" ? [1280, 720] : [1600, 900];
+    const [width, height] = dimensions;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, "#050807");
+    gradient.addColorStop(0.45, template.includes("vermelho") ? "#2b0909" : "#08130d");
+    gradient.addColorStop(1, "#000000");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    if (product?.image_url) {
+      try {
+        const image = await loadCanvasImage(product.image_url);
+        drawCover(ctx, image, width, height);
+        ctx.fillStyle = "rgba(0,0,0,0.42)";
+        ctx.fillRect(0, 0, width, height);
+      } catch {
+        ctx.fillStyle = "rgba(74,222,128,0.08)";
+        ctx.fillRect(0, 0, width, height);
+      }
+    }
+
+    const pad = Math.round(width * 0.065);
+    ctx.fillStyle = "rgba(0,0,0,0.52)";
+    ctx.fillRect(0, Math.round(height * 0.58), width, Math.round(height * 0.42));
+    ctx.fillStyle = "#4ADE80";
+    ctx.font = `${Math.round(width * 0.024)}px monospace`;
+    ctx.fillText(template.toUpperCase(), pad, pad + 10);
+    ctx.fillText(campaign.toUpperCase().slice(0, 34), pad, pad + Math.round(width * 0.04));
+
+    ctx.fillStyle = "#F8FAFC";
+    ctx.font = `900 ${Math.round(width * 0.075)}px Inter, Arial, sans-serif`;
+    wrapCanvasText(ctx, headline, pad, Math.round(height * 0.66), width - pad * 2, Math.round(width * 0.085), 3);
+    ctx.fillStyle = "#CBD5E1";
+    ctx.font = `${Math.round(width * 0.034)}px Inter, Arial, sans-serif`;
+    wrapCanvasText(ctx, copy, pad, Math.round(height * 0.78), width - pad * 2, Math.round(width * 0.046), 4);
+
+    const buttonY = Math.round(height * 0.9);
+    const buttonW = Math.round(width * 0.34);
+    const buttonH = Math.round(width * 0.085);
+    ctx.fillStyle = "#4ADE80";
+    roundRect(ctx, pad, buttonY, buttonW, buttonH, Math.round(buttonH / 2));
+    ctx.fill();
+    ctx.fillStyle = "#031007";
+    ctx.font = `800 ${Math.round(width * 0.028)}px Inter, Arial, sans-serif`;
+    ctx.fillText(cta.slice(0, 26), pad + Math.round(width * 0.035), buttonY + Math.round(buttonH * 0.62));
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `story-maker-${slugify(campaign || "campanha")}.${type}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, type === "png" ? "image/png" : "image/jpeg", 0.92);
+
+    await supabase.from("story_maker_assets").insert({
+      product_id: product?.id ?? null,
+      title: headline,
+      copy,
+      cta,
+      campaign,
+      format,
+      template,
+      exported_type: type,
+      metadata: { product: product?.name ?? null }
+    });
+  }
+
+  return (
+    <AdminLayout title="Story Maker" description="Crie artes promocionais, stories, posts, banners e thumbs com links rastreáveis.">
+      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+        <Panel title="Configuração da arte">
+          <div className="grid gap-4">
+            <div><Label>Produto</Label><Select value={productId} onChange={setProductId} options={products.map((item) => [item.id, item.name])} /></div>
+            <div><Label>Formato</Label><Select value={format} onChange={setFormat} options={[["story", "Story 1080x1920"], ["feed", "Feed 1080x1350"], ["banner", "Banner horizontal"], ["thumb", "Thumb YouTube"]]} /></div>
+            <div><Label>Template</Label><Select value={template} onChange={setTemplate} options={[["bunker militar", "Bunker militar"], ["alerta vermelho", "Alerta vermelho"], ["sobrevivencia", "Sobrevivência"], ["terminal hacker", "Terminal hacker"], ["documento secreto", "Documento secreto"], ["apocalipse tecnologico", "Apocalipse tecnológico"]]} /></div>
+            <div><Label>Título</Label><Input value={headline} onChange={(event) => setHeadline(event.target.value)} className="mt-2" /></div>
+            <div><Label>Copy</Label><Textarea value={copy} onChange={(event) => setCopy(event.target.value)} className="mt-2" /></div>
+            <div><Label>CTA</Label><Input value={cta} onChange={(event) => setCta(event.target.value)} className="mt-2" /></div>
+            <div><Label>Campanha</Label><Input value={campaign} onChange={(event) => setCampaign(slugify(event.target.value))} className="mt-2" /></div>
+            <Button onClick={generateAi} disabled={aiLoading}><Sparkles className="h-4 w-4" /> {aiLoading ? "Gerando..." : "Gerar com IA"}</Button>
+          </div>
+        </Panel>
+        <section>
+          <div id="story-maker-preview" className={`relative mx-auto overflow-hidden rounded-2xl border border-primary/20 bg-[#050807] shadow-glow ${format === "story" ? "aspect-[9/16] max-h-[760px]" : format === "feed" ? "aspect-[4/5] max-h-[720px]" : "aspect-video"}`}>
+            {product?.image_url ? <img src={product.image_url} className="absolute inset-0 h-full w-full object-cover opacity-70" /> : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+            <div className="absolute left-6 right-6 top-6 flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-primary"><span>{template}</span><span>{campaign}</span></div>
+            <div className="absolute bottom-8 left-6 right-6">
+              <p className="font-mono text-xs uppercase tracking-[0.22em] text-primary">{product?.categories?.name ?? "Arsenal"}</p>
+              <h2 className="mt-3 text-4xl font-black leading-none text-bunker-ice">{headline}</h2>
+              <p className="mt-4 text-base leading-7 text-slate-200">{copy}</p>
+              <div className="mt-5 inline-flex rounded-full bg-primary px-5 py-3 text-sm font-bold text-black">{cta}</div>
+            </div>
+          </div>
+          <div className="mt-5 flex justify-center gap-3"><Button variant="outline" onClick={() => exportImage("png")}><FileDown className="h-4 w-4" /> Exportar PNG</Button><Button variant="outline" onClick={() => exportImage("jpg")}>Exportar JPG</Button></div>
+        </section>
+      </div>
+    </AdminLayout>
+  );
+}
+
 function HelpCenterAdmin() {
   const [query, setQuery] = useState("");
   const modules = [
@@ -3239,6 +3954,20 @@ function HelpCenterAdmin() {
       bullets: ["Analise origem e campanha", "Veja browser e dispositivo", "Compare crescimento por período"]
     },
     {
+      icon: Bell,
+      title: "Alertas",
+      label: "Monitoramento",
+      description: "Centraliza riscos operacionais como picos de trafego, links quebrados, produtos sem imagem e integracoes desconectadas.",
+      bullets: ["Priorize alertas criticos", "Envie para Telegram, Discord, Email ou Webhook", "Use o feed como checklist diario"]
+    },
+    {
+      icon: FileCheck2,
+      title: "Verificador de Links",
+      label: "Saude afiliada",
+      description: "Testa links afiliados com API protegida, registra historico e cria alerta quando encontra timeout, erro HTTP ou redirecionamento suspeito.",
+      bullets: ["Clique em Testar link", "Acompanhe ultima verificacao", "Corrija produtos com link invalido"]
+    },
+    {
       icon: Link2,
       title: "Links Rastreáveis",
       label: "UTM e campanhas",
@@ -3251,6 +3980,13 @@ function HelpCenterAdmin() {
       label: "Exportação",
       description: "Transforma dados do painel em relatórios visuais e arquivos CSV para análise externa.",
       bullets: ["Exporte dados", "Compare campanhas", "Acompanhe crescimento"]
+    },
+    {
+      icon: Palette,
+      title: "Story Maker",
+      label: "Criacao de conteudo",
+      description: "Gera artes promocionais para Stories, posts, banners e thumbs usando produto, campanha, CTA e copy cinematografica.",
+      bullets: ["Escolha produto e template", "Gere texto com IA", "Exporte PNG ou JPG"]
     },
     {
       icon: Users,
@@ -3511,6 +4247,7 @@ const thematicConfig = {
     sectionTitle: "Equipamentos para travessia hostil",
     description: "Itens para fuga, patrulha, sinalização e sobrevivência em áreas de colapso biológico.",
     image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+    campaign: "arsenal-zumbi-survival",
     terms: ["zumbi", "sobrevivência", "militar", "emergência", "lanterna"]
   },
   kit: {
@@ -3519,6 +4256,7 @@ const thematicConfig = {
     sectionTitle: "Primeiros itens do sobrevivente",
     description: "Curadoria automática para abrigo, energia, comunicação, iluminação e evacuação.",
     image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1600&q=80",
+    campaign: "kit-sobrevivencia-bio",
     terms: ["sobrevivência", "emergência", "mochila", "energia", "comunicação"]
   },
   secretos: {
@@ -3527,6 +4265,7 @@ const thematicConfig = {
     sectionTitle: "Tecnologia perdida e arquivos restritos",
     description: "Gadgets, itens misteriosos e equipamentos de laboratório para narrativas de suspense.",
     image: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?auto=format&fit=crop&w=1600&q=80",
+    campaign: "equipamentos-secretos-lab",
     terms: ["gadget", "tecnologia", "laboratório", "misterioso", "secreto"]
   },
   bunker: {
@@ -3535,6 +4274,7 @@ const thematicConfig = {
     sectionTitle: "Itens para abrigo e comunicação",
     description: "Produtos para manter um bunker operacional durante o colapso mundial.",
     image: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1600&q=80",
+    campaign: "arquivo-bunker-ep1",
     terms: ["bunker", "rádio", "energia", "comunicação", "militar"]
   },
   proibidos: {
@@ -3543,6 +4283,7 @@ const thematicConfig = {
     sectionTitle: "Equipamentos de alto risco",
     description: "Itens agressivos, raros ou suspeitos para campanhas de maior tensão narrativa.",
     image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1600&q=80",
+    campaign: "itens-proibidos-alerta",
     terms: ["proibido", "militar", "secreto", "terror", "misterioso"]
   }
 };
@@ -3787,6 +4528,19 @@ function automaticCollections(products: Product[]) {
     { name: "Arquivo bunker", count: products.filter((product) => smartProductScore(product, ["bunker", "sobrevivência"]) > 0).length },
     { name: "Itens misteriosos", count: products.filter((product) => smartProductScore(product, ["misterioso", "secreto", "gadget"]) > 0).length }
   ];
+}
+
+function generateSmartAlerts(products: Product[], overview: Overview) {
+  const now = new Date().toISOString();
+  const alerts: AlertItem[] = [];
+  products.filter((product) => !product.image_url).slice(0, 5).forEach((product) => alerts.push({ id: `no-image-${product.id}`, title: "Produto sem imagem", message: `${product.name} precisa de imagem para manter a vitrine premium.`, severity: "warning", created_at: now }));
+  products.filter((product) => !product.category_id).slice(0, 5).forEach((product) => alerts.push({ id: `no-category-${product.id}`, title: "Produto sem categoria", message: `${product.name} não está organizado em nenhum setor.`, severity: "warning", created_at: now }));
+  products.filter((product) => !product.affiliate_url || !product.affiliate_url.startsWith("http")).slice(0, 5).forEach((product) => alerts.push({ id: `bad-link-${product.id}`, title: "Link afiliado inválido", message: `${product.name} possui link vazio ou suspeito.`, severity: "critical", created_at: now }));
+  if (overview.growth > 50) alerts.push({ id: "traffic-spike", title: "Pico de tráfego detectado", message: `Crescimento de ${overview.growth}% no período atual.`, severity: "info", created_at: now });
+  if (overview.growth < -35) alerts.push({ id: "traffic-drop", title: "Queda brusca de acessos", message: `Queda de ${Math.abs(overview.growth)}% comparado ao período anterior.`, severity: "critical", created_at: now });
+  if (overview.topProducts[0]?.clicks > 20) alerts.push({ id: "hot-product", title: "Produto em alta", message: `${overview.topProducts[0].name} recebeu ${overview.topProducts[0].clicks} cliques.`, severity: "info", created_at: now });
+  if (!alerts.length) alerts.push({ id: "all-clear", title: "Sistema sem alertas críticos", message: "Nenhum problema automático detectado com os dados atuais.", severity: "success", created_at: now });
+  return alerts;
 }
 
 function CollectionModal({ open, collection, onClose, onSave }: { open: boolean; collection: CollectionRow | null; onClose: () => void; onSave: (payload: Partial<CollectionRow>) => Promise<boolean> }) {
@@ -4323,6 +5077,158 @@ async function parseApiJson(response: Response) {
     throw new Error("API route served HTML instead of JSON.");
   }
   return JSON.parse(text);
+}
+
+function unique(items: string[]) {
+  return Array.from(new Set(items.filter(Boolean)));
+}
+
+function nextFridayAt23() {
+  const date = new Date();
+  const day = date.getDay();
+  const daysUntilFriday = (5 - day + 7) % 7 || 7;
+  date.setDate(date.getDate() + daysUntilFriday);
+  date.setHours(23, 59, 0, 0);
+  return date.toISOString();
+}
+
+function useCountdown(endsAt: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const diff = Math.max(0, new Date(endsAt).getTime() - now);
+  return {
+    days: Math.floor(diff / 86400000),
+    hours: Math.floor(diff / 3600000) % 24,
+    minutes: Math.floor(diff / 60000) % 60,
+    seconds: Math.floor(diff / 1000) % 60
+  };
+}
+
+function CountdownPanel({ title, endsAt }: { title: string; endsAt: string }) {
+  const time = useCountdown(endsAt);
+  return (
+    <div className="rounded-2xl border border-primary/15 bg-primary/[0.055] p-5 shadow-glow">
+      <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-primary">{title}</p>
+      <div className="mt-5 grid grid-cols-4 gap-2">
+        {Object.entries(time).map(([label, value]) => (
+          <div key={label} className="rounded-xl border border-white/10 bg-black/35 p-3 text-center">
+            <p className="font-mono text-2xl font-black text-bunker-ice">{String(value).padStart(2, "0")}</p>
+            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OperationalStatusStrip({ products }: { products: Product[] }) {
+  const checks = [
+    ["Sistema", "ONLINE", ShieldCheck],
+    ["Campanhas", "Ativas", Megaphone],
+    ["Arsenal", `${products.length} itens`, Boxes],
+    ["Tracking", "Operacional", Radar],
+    ["Links", "Monitorados", FileCheck2]
+  ] as const;
+  return <div className="grid gap-3 md:grid-cols-5">{checks.map(([label, value, Icon]) => <PublicMetric key={label} icon={Icon} label={label} value={value} />)}</div>;
+}
+
+function PublicMetric({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-primary/12 bg-[rgba(10,18,15,0.72)] p-4 backdrop-blur">
+      <Icon className="h-5 w-5 text-primary" />
+      <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+      <p className="mt-1 line-clamp-1 text-lg font-black text-bunker-ice">{value}</p>
+    </div>
+  );
+}
+
+function trendLevel(product: Product) {
+  const clicks = product.click_count ?? 0;
+  if (clicks >= 50) return "viral";
+  if (clicks >= 20) return "trend";
+  if (clicks >= 8) return "hot";
+  return "normal";
+}
+
+function ProductBadge({ product }: { product: Product }) {
+  const level = trendLevel(product);
+  const tags = product.tags ?? [];
+  const label = level === "viral" ? "☢️ Viralizando" : level === "trend" ? "⚠️ Tendencia" : level === "hot" ? "🔥 Em Alta" : tags.includes("militar") ? "🛡️ Militar" : tags.includes("comunicacao") ? "📡 Comunicacao" : product.is_featured ? "🔒 Secreto" : "Raro";
+  return <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">{label}</span>;
+}
+
+function RankingGrid({ products }: { products: Product[] }) {
+  return (
+    <div className="grid gap-4">
+      {products.map((product, index) => (
+        <Link key={product.id} to={`/produto/${product.slug}`} className="grid gap-4 rounded-2xl border border-white/10 bg-card/70 p-4 transition hover:-translate-y-1 hover:border-primary/35 md:grid-cols-[80px_1fr_auto] md:items-center">
+          <div className="relative"><ImageWithFallback src={product.image_url} alt={product.name} className="h-20 w-20 rounded-xl object-cover" /><span className="absolute -left-2 -top-2 grid h-8 w-8 place-items-center rounded-full bg-primary font-mono text-xs font-black text-black">#{index + 1}</span></div>
+          <div><ProductBadge product={product} /><h2 className="mt-3 text-2xl font-black text-bunker-ice">{product.name}</h2><p className="mt-1 text-sm text-muted-foreground">{product.categories?.name ?? "Arsenal"} • {product.short_description || product.description}</p></div>
+          <div className="font-mono text-primary">{product.click_count ?? 0} cliques</div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function RecommendedKits({ products }: { products: Product[] }) {
+  const kits = [
+    ["Kit Bunker", ["bunker", "energia", "lanterna"]],
+    ["Kit Blackout", ["energia", "lanterna", "comunicacao"]],
+    ["Kit Sobrevivencia", ["sobrevivencia", "mochila", "emergencia"]],
+    ["Kit Militar", ["militar", "radio", "tatico"]]
+  ];
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {kits.map(([name, terms]) => {
+        const count = products.filter((product) => smartProductScore(product, terms as string[]) > 0).length;
+        return <Link key={name as string} to={`/arsenal?kit=${slugify(name as string)}`} className="rounded-2xl border border-white/10 bg-card/70 p-4 transition hover:border-primary/35"><p className="font-bold text-bunker-ice">{name as string}</p><p className="mt-2 text-sm text-muted-foreground">{count} produtos recomendados</p></Link>;
+      })}
+    </div>
+  );
+}
+
+function ProductReactions({ productId }: { productId: string }) {
+  const reactions = ["🔥", "⚠️", "🛡️", "☢️"];
+  const [selected, setSelected] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`product-reactions-${productId}`) ?? "[]") as string[]; } catch { return []; }
+  });
+  async function react(reaction: string) {
+    const next = selected.includes(reaction) ? selected.filter((item) => item !== reaction) : [...selected, reaction];
+    setSelected(next);
+    localStorage.setItem(`product-reactions-${productId}`, JSON.stringify(next));
+    await supabase.from("product_reactions").insert({ product_id: productId, reaction, visitor_hash: "local" });
+  }
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Reacoes</span>
+      {reactions.map((reaction) => <button key={reaction} type="button" onClick={() => react(reaction)} className={`rounded-full border px-3 py-2 text-lg transition ${selected.includes(reaction) ? "border-primary bg-primary/15" : "border-white/10 bg-white/[0.035] hover:border-primary/35"}`}>{reaction}</button>)}
+    </div>
+  );
+}
+
+function buildHighlightRules(products: Product[], overview: Overview | null) {
+  const ranked = [...products].sort((a, b) => (b.click_count ?? 0) - (a.click_count ?? 0));
+  return [
+    { title: "Produto mais clicado", value: ranked[0]?.name ?? "Sem dados", description: "Produto recomendado para destaque automatico na homepage e no multilink." },
+    { title: "Campanha em alta", value: overview?.bestCampaign ?? "Sem dados", description: "Campanha com maior volume de acessos no periodo filtrado." },
+    { title: "Produto do dia", value: overview?.topProducts[0]?.name ?? ranked[0]?.name ?? "Sem dados", description: "Item com melhor sinal recente para ocupar banner ou CTA principal." },
+    { title: "Crescimento rapido", value: `${overview?.growth ?? 0}%`, description: "Indicador para ativar modo evento ou destacar colecao viral." }
+  ];
+}
+
+function RealtimeFeed({ overview }: { overview: Overview | null }) {
+  const rows = overview?.recent.slice(0, 8).map((item) => `[${new Date(item.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}] ${item.product} acessado via ${item.source}`) ?? [];
+  const feed = rows.length ? rows : ["[--:--] Aguardando novos cliques", "[--:--] Tracking operacional", "[--:--] Links rastreaveis prontos"];
+  return <div className="space-y-2 font-mono text-xs text-primary">{feed.map((item) => <p key={item} className="rounded border border-primary/15 bg-primary/[0.045] p-3">{item}</p>)}</div>;
+}
+
+function EventModePreview() {
+  const events = ["Black Friday", "Semana do Apocalipse", "Operacao Bunker", "Arsenal Secreto"];
+  return <div className="grid gap-3">{events.map((event) => <div key={event} className="rounded-lg border border-white/10 bg-black/25 p-4"><p className="font-bold text-bunker-ice">{event}</p><p className="mt-1 text-sm text-muted-foreground">Pode alterar banners, cores, homepage, destaques e campanhas.</p></div>)}</div>;
 }
 
 function useStore() {
